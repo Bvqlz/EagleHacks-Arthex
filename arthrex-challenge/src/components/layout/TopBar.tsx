@@ -2,7 +2,6 @@ import { useAppStore } from '../../store/appStore';
 import { useModeContext } from '../../context/ModeContext';
 
 interface TopBarProps {
-  sidebarOpen: boolean;
   onMenuToggle: () => void;
 }
 
