@@ -3,6 +3,7 @@ import TopBar from './TopBar';
 import AnatomySidebar from './AnatomySidebar';
 import ProcedurePanel from '../procedure/ProcedurePanel';
 import KneeScene from '../scene/KneeScene';
+import InfoCard from '../procedure/InfoCard';
 import { useAppStore } from '../../store/appStore';
 
 export default function Layout() {
@@ -11,10 +12,7 @@ export default function Layout() {
 
   return (
     <div className="h-screen bg-slate-900 text-white flex flex-col overflow-hidden">
-      <TopBar
-        sidebarOpen={sidebarOpen}
-        onMenuToggle={() => setSidebarOpen((o) => !o)}
-      />
+      <TopBar onMenuToggle={() => setSidebarOpen((o) => !o)} />
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar — collapsible, 240px wide */}
@@ -30,10 +28,11 @@ export default function Layout() {
 
         {/* Center viewport — R3F Canvas fills this area */}
         <main
-          id="viewport"
+          id="viewport-container"
           className="flex-1 relative bg-slate-950 overflow-hidden"
         >
           <KneeScene />
+          <InfoCard />
         </main>
 
         {/* Right panel — 320px, slides in when procedure mode is active */}
