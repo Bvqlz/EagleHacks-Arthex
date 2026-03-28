@@ -1,0 +1,112 @@
+{
+  "structures": [
+    {
+      "id": "femur",
+      "name": "Femur",
+      "category": "bone",
+      "color": "#F5E6D3",
+      "surgeon_description": "The distal femur forms the superior articular surface of the knee via its medial and lateral condyles. The ACL's femoral footprint occupies the posterolateral aspect of the medial wall of the lateral condyle; the anatomic center lies at the 10–11 o'clock position (right knee). Precise tunnel placement at this footprint — rather than the historically used isometric high-noon position — is the single most critical determinant of rotational stability after reconstruction.",
+      "patient_description": "The femur is your thigh bone — the longest and strongest bone in your body — and it forms the top half of your knee joint. During ACL reconstruction, your surgeon drills a small tunnel in the lower end of this bone to create the upper anchor point for your new ligament.",
+      "fun_fact": "The femur can withstand compressive forces up to 30 times your body weight, yet a precisely placed ACL tunnel only 2–3 mm off-center can compromise rotational stability enough to allow re-injury."
+    },
+    {
+      "id": "tibia",
+      "name": "Tibia",
+      "category": "bone",
+      "color": "#F5E6D3",
+      "surgeon_description": "The tibia is the primary weight-bearing bone of the lower leg, providing the distal articular surface via its medial and lateral plateaus and the intercondylar eminence. The ACL's tibial footprint occupies the anterior intercondylar area, anterior to the tibial spine, spanning approximately 11 mm mediolaterally. Tibial tunnel placement is guided to this footprint with an aiming device set to 55°; the Howell no-roof-impingement test at 0° extension must be passed before graft passage.",
+      "patient_description": "The tibia is your shin bone, forming the bottom half of your knee joint. Your surgeon creates a second tunnel through this bone during ACL reconstruction — together, the two tunnels act as the channels that hold your new ligament in the correct anatomical position.",
+      "fun_fact": "Anterior tibial tunnel placement by just 5 mm increases the risk of the graft impinging on the roof of the knee during full straightening — a complication called a cyclops lesion — which is why precise guide placement is so critical."
+    },
+    {
+      "id": "fibula",
+      "name": "Fibula",
+      "category": "bone",
+      "color": "#F5E6D3",
+      "surgeon_description": "The fibula is a slender non-weight-bearing bone running lateral to the tibia. Its proximal head is the primary osseous attachment for the LCL and the biceps femoris long head, forming the posterolateral corner complex. It is not directly involved in standard ACL reconstruction but becomes a critical surgical landmark when concomitant posterolateral corner injury is present, which occurs in approximately 15% of ACL tears.",
+      "patient_description": "The fibula is the smaller bone on the outer side of your lower leg. Although it doesn't bear significant body weight, it anchors several important ligaments on the outside of your knee that contribute to overall stability.",
+      "fun_fact": "The fibula is so non-essential for weight-bearing that surgeons sometimes harvest a segment of it as a bone graft for other procedures — yet its ligament attachments at the knee make it indispensable for lateral stability."
+    },
+    {
+      "id": "patella",
+      "name": "Patella",
+      "category": "bone",
+      "color": "#F5E6D3",
+      "surgeon_description": "The patella is the largest sesamoid bone in the body, embedded within the quadriceps-patellar tendon extensor mechanism and articulating with the femoral trochlea to form the patellofemoral joint. It functions as a mechanical pulley, increasing quadriceps moment arm by up to 50% at 20° of flexion. The central third of the patellar tendon with its proximal and distal bone plugs constitutes the BTB autograft — the historical gold standard for ACL reconstruction with the strongest initial fixation strength.",
+      "patient_description": "Your kneecap (patella) sits at the front of your knee and acts like a pulley, making your quadriceps muscle far more efficient when straightening your leg. Protecting the structures around the kneecap during surgery — and reactivating the quadriceps early in rehab — is essential for a pain-free recovery.",
+      "fun_fact": "The patella improves the efficiency of your quadriceps by up to 50% — without it, you would need significantly more muscle force just to walk up stairs."
+    },
+    {
+      "id": "acl",
+      "name": "Anterior Cruciate Ligament",
+      "category": "ligament",
+      "color": "#E85D75",
+      "surgeon_description": "The ACL consists of two functional bundles — the anteromedial (AM) and posterolateral (PL) — that together restrain anterior tibial translation and internal rotation. The AM bundle is primary in flexion; the PL bundle provides rotational stability in near-extension. The ligament is intra-articular but extrasynovial, with limited intrinsic healing capacity due to its synovial bathing environment and the mechanical shear forces preventing clot organization. Over 200,000 reconstructions are performed annually in the US.",
+      "patient_description": "The ACL is the main internal ligament of the knee — a strong rope-like band that prevents your shin bone from sliding forward and your knee from rotating incorrectly during sports and daily activities. When it tears, usually with a sudden twist or landing, the knee becomes unstable and surgery is typically needed to fully restore function.",
+      "fun_fact": "The ACL is the most reconstructed ligament in orthopedic surgery worldwide — yet rerupture rates in athletes under 25 reach 15–25%, driving ongoing research into the best graft choice, surgical technique, and return-to-sport protocols."
+    },
+    {
+      "id": "pcl",
+      "name": "Posterior Cruciate Ligament",
+      "category": "ligament",
+      "color": "#C0392B",
+      "surgeon_description": "The PCL is the strongest intra-articular ligament in the knee, with a cross-sectional area approximately twice that of the ACL. It originates from the lateral aspect of the medial femoral condyle and inserts on the posterior tibial sulcus 1–1.5 cm below the joint line, serving as the primary restraint to posterior tibial translation. During ACL reconstruction, the intact PCL serves as the key reference landmark for tibial tunnel positioning, and its posterior slope must be protected during guide wire placement.",
+      "patient_description": "The PCL is the knee's other internal ligament — the strongest one — and it prevents your shin bone from sliding backward. It sits just behind the ACL, and because it has a better blood supply, isolated PCL tears often heal without surgery. Surgeons use it as an important reference point during ACL reconstruction.",
+      "fun_fact": "The PCL is about twice as strong as the ACL and has significantly better healing capacity — yet it remains in the shadow of the ACL in public awareness, despite being injured in up to 38% of acute knee injuries seen in emergency departments."
+    },
+    {
+      "id": "mcl",
+      "name": "Medial Collateral Ligament",
+      "category": "ligament",
+      "color": "#E67E22",
+      "surgeon_description": "The MCL is a multi-layered structure comprising the superficial tibial collateral ligament (primary valgus restraint, ~78% of resistance at 25°), the deep capsular ligament, and the posterior oblique ligament. It has a robust blood supply and intrinsic healing potential, meaning isolated grade I–II MCL tears are managed non-operatively in most cases. Concomitant grade III MCL tears with ACL injury require careful staging — simultaneous reconstruction can be considered in chronic cases with residual laxity on valgus stress radiographs.",
+      "patient_description": "The MCL is a wide, layered ligament running down the inside of your knee that prevents it from buckling inward. Unlike the ACL, mild to moderate MCL tears frequently heal on their own with bracing and physical therapy, because this ligament has a much better blood supply.",
+      "fun_fact": "The MCL has such a reliable blood supply that grade I and II tears typically heal completely within 6–8 weeks with conservative treatment — a stark contrast to the ACL, which essentially never heals on its own."
+    },
+    {
+      "id": "lcl",
+      "name": "Lateral Collateral Ligament",
+      "category": "ligament",
+      "color": "#D35400",
+      "surgeon_description": "The LCL (fibular collateral ligament) runs from the lateral femoral epicondyle to the fibular head, serving as the primary restraint to varus stress and a key component of the posterolateral corner (PLC). Unlike the MCL, it has no meniscal attachment, making it a palpable cordlike structure on the lateral joint line. Varus stress radiographs showing >2.7 mm of lateral joint opening compared to the contralateral knee indicate complete LCL disruption, typically requiring PLC reconstruction.",
+      "patient_description": "The LCL is a rope-like ligament on the outer side of your knee that prevents it from bowing outward. You can sometimes feel it as a tight cord on the outside of your knee. LCL injuries are less common than MCL injuries but often accompany more complex knee trauma.",
+      "fun_fact": "The LCL is the only major knee ligament with absolutely no attachment to its adjacent meniscus — this anatomical independence is why the lateral meniscus is so much more mobile than the medial one, moving nearly twice as far during knee flexion."
+    },
+    {
+      "id": "medial_meniscus",
+      "name": "Medial Meniscus",
+      "category": "meniscus",
+      "color": "#27AE60",
+      "surgeon_description": "The medial meniscus is a C-shaped fibrocartilage with firm peripheral attachments to the joint capsule and deep MCL, limiting its mobility. It transmits ~50% of medial compartment load and functions as a secondary restraint to anterior tibial translation in ACL-deficient knees. Concomitant medial meniscus tears occur in 30–50% of acute ACL injuries and up to 90% of chronic cases; the posterior horn — the most commonly torn region — must be carefully assessed via posterior horn probing at arthroscopy.",
+      "patient_description": "The medial meniscus is a C-shaped cartilage cushion on the inner side of your knee that absorbs shock and spreads your body weight evenly across the joint surface. Because it is firmly anchored to the inner knee capsule, it is vulnerable to tearing alongside an ACL injury — your surgeon will carefully inspect and repair it if needed.",
+      "fun_fact": "When the ACL is torn, the medial meniscus takes over as a secondary stabilizer to prevent the shin bone from sliding forward — which is why delaying ACL reconstruction significantly increases the rate of medial meniscus tears and accelerates cartilage wear."
+    },
+    {
+      "id": "lateral_meniscus",
+      "name": "Lateral Meniscus",
+      "category": "meniscus",
+      "color": "#2ECC71",
+      "surgeon_description": "The lateral meniscus covers approximately 75–93% of the lateral tibial plateau and has fewer peripheral capsular attachments than the medial meniscus, conferring significantly greater mobility (up to 11 mm of posterior translation in flexion). Its inner two-thirds are avascular; healing potential is confined to the peripheral red-red zone. Lateral meniscus root tears — frequent in acute ACL injuries — are biomechanically equivalent to total meniscectomy and must be repaired to prevent rapid lateral compartment arthrosis.",
+      "patient_description": "The lateral meniscus is a nearly circular cartilage pad on the outer side of your knee. It is considerably more mobile than its inner counterpart, which is why it can partially escape damage during twisting injuries. Many lateral meniscus tears associated with ACL injuries are amenable to repair rather than removal.",
+      "fun_fact": "A lateral meniscus root tear — where the back edge of the cartilage pad completely detaches — is biomechanically equivalent to removing the entire meniscus, which is why catching and repairing this injury at the time of ACL surgery can be the difference between a healthy knee and early arthritis."
+    },
+    {
+      "id": "articular_cartilage",
+      "name": "Articular Cartilage",
+      "category": "cartilage",
+      "color": "#85C1E9",
+      "surgeon_description": "Hyaline articular cartilage covers the weight-bearing surfaces of the distal femur, proximal tibia, and posterior patella. It is aneural, avascular, and alymphatic — deriving nutrition from synovial fluid via diffusion — severely limiting its intrinsic repair capacity. Chondral lesions are classified per the ICRS grading system (I–IV); full-thickness defects (ICRS III–IV) exceeding 2 cm² may require concomitant microfracture, autologous chondrocyte implantation (ACI), or osteochondral autograft transfer (OATS) at the time of ACL reconstruction.",
+      "patient_description": "Articular cartilage is the smooth, glassy coating on the ends of your bones that allows your knee to move with almost no friction. Because it has no blood supply, damaged cartilage cannot repair itself — which is why protecting it during surgery and returning to activity gradually during rehabilitation is so important for the long-term health of your joint.",
+      "fun_fact": "Articular cartilage has a coefficient of friction lower than ice on ice — yet it has virtually no regenerative capacity, which is why a single ACL injury left untreated for years can start a cascade that leads to arthritis decades before it would otherwise occur."
+    },
+    {
+      "id": "patellar_tendon",
+      "name": "Patellar Tendon",
+      "category": "tendon",
+      "color": "#F39C12",
+      "surgeon_description": "The patellar tendon (ligamentum patellae) spans from the inferior patellar pole to the tibial tuberosity, transmitting quadriceps forces for knee extension. Its central third — harvested as a bone-patellar tendon-bone (BTB) graft with 25 mm bone plugs at each end — provides the strongest initial fixation strength of any autograft option due to direct cortical bone-to-bone healing. BTB donor-site morbidity (anterior knee pain, patellar fracture risk, tendinopathy) affects 10–30% of patients, which has driven growing preference for hamstring autograft in high-volume centers.",
+      "patient_description": "The patellar tendon connects your kneecap to your shin bone and is what allows your thigh muscles to straighten your knee. It is one of several possible graft sources surgeons may use to rebuild your ACL. Your surgeon will discuss which option — patellar tendon, hamstring, or donor tissue — is best suited for your age, activity level, and anatomy.",
+      "fun_fact": "The patellar tendon withstands forces exceeding 7,700 N during explosive jumping — nearly twice the strength of the native ACL — which is why its central third has historically been considered the gold standard ACL graft, despite significant donor-site trade-offs."
+    }
+  ]
+}

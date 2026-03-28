@@ -1,18 +1,26 @@
-// TODO: You — Configure scene lighting
-// Suggested setup:
-//   - ambientLight intensity={0.4}
-//   - directionalLight position={[5, 5, 5]} intensity={1} castShadow
-//   - pointLight position={[-5, -3, -2]} intensity={0.3} color="#4ECDC4" (rim light)
-// Wrap in a React fragment and export.
-
 export default function SceneLighting() {
-  // TODO: Replace null with actual lights once mounted inside R3F Canvas:
-  //   return (
-  //     <>
-  //       <ambientLight intensity={0.4} />
-  //       <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
-  //       <pointLight position={[-5, -3, -2]} intensity={0.3} color="#4ECDC4" />
-  //     </>
-  //   );
-  return null;
+  return (
+    <>
+      {/* Soft base fill */}
+      <ambientLight intensity={0.4} />
+
+      {/* Key light — upper right, slightly warm */}
+      <directionalLight
+        position={[4, 6, 3]}
+        intensity={1.0}
+        color="#FFF8F0"
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+        shadow-camera-near={0.5}
+        shadow-camera-far={20}
+      />
+
+      {/* Fill light — lower left, cool */}
+      <directionalLight position={[-3, -2, -2]} intensity={0.3} color="#E8F4FF" />
+
+      {/* Subtle rim / back light for depth */}
+      <pointLight position={[0, -2, -4]} intensity={0.25} color="#A8D8EA" />
+    </>
+  );
 }

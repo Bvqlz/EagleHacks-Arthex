@@ -13,3 +13,4 @@ export { default as ToggleSwitch } from './ui/ToggleSwitch';
 export { default as Badge } from './ui/Badge';
 export { default as ProgressBar } from './ui/ProgressBar';
 export { default as WelcomeModal } from './ui/WelcomeModal';
+export { default as LoadingSpinner } from './ui/LoadingSpinner';

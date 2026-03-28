@@ -6,6 +6,8 @@ interface AppState {
   toggleStructure: (id: string) => void;
   showAll: () => void;
   hideAll: () => void;
+  showAllInCategory: (category: string, structures: string[]) => void;
+  hideAllInCategory: (category: string, structures: string[]) => void;
 
   // Selection
   selectedStructure: string | null;
@@ -40,6 +42,7 @@ const initialStructures: Record<string, boolean> = {
 
 export const useAppStore = create<AppState>((set) => ({
   visibleStructures: initialStructures,
+
   toggleStructure: (id) =>
     set((state) => ({
       visibleStructures: {
@@ -47,17 +50,35 @@ export const useAppStore = create<AppState>((set) => ({
         [id]: !state.visibleStructures[id],
       },
     })),
+
   showAll: () =>
     set((state) => ({
       visibleStructures: Object.fromEntries(
         Object.keys(state.visibleStructures).map((k) => [k, true])
       ),
     })),
+
   hideAll: () =>
     set((state) => ({
       visibleStructures: Object.fromEntries(
         Object.keys(state.visibleStructures).map((k) => [k, false])
       ),
+    })),
+
+  showAllInCategory: (_category, structures) =>
+    set((state) => ({
+      visibleStructures: {
+        ...state.visibleStructures,
+        ...Object.fromEntries(structures.map((id) => [id, true])),
+      },
+    })),
+
+  hideAllInCategory: (_category, structures) =>
+    set((state) => ({
+      visibleStructures: {
+        ...state.visibleStructures,
+        ...Object.fromEntries(structures.map((id) => [id, false])),
+      },
     })),
 
   selectedStructure: null,
