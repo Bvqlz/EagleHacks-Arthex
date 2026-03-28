@@ -1,22 +1,55 @@
-// TODO: Teammate B — Build the main app layout
-// See task breakdown in README.md
-// Layout should include: TopBar at top, AnatomySidebar on left,
-// main 3D viewport in center, ProcedurePanel on right.
+import { useState } from 'react';
+import TopBar from './TopBar';
+import AnatomySidebar from './AnatomySidebar';
+import ProcedurePanel from '../procedure/ProcedurePanel';
+import JointScene from '../scene/JointScene';
+import InfoCard from '../procedure/InfoCard';
+import { useAppStore } from '../../store/appStore';
+import { scenes } from '../../data/scenes';
 
 export default function Layout() {
+  const viewMode = useAppStore((s) => s.viewMode);
+  const activeSceneId = useAppStore((s) => s.activeSceneId);
+  const config = scenes[activeSceneId];
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
   return (
-    <div className="h-screen bg-slate-900 text-white flex flex-col">
-      {/* TODO: <TopBar /> */}
+    <div className="h-screen bg-slate-900 text-white flex flex-col overflow-hidden">
+      <TopBar
+        sidebarOpen={sidebarOpen}
+        onMenuToggle={() => setSidebarOpen((o) => !o)}
+      />
+
       <div className="flex flex-1 overflow-hidden">
-        {/* TODO: <AnatomySidebar /> */}
-        <main className="flex-1 relative">
-          {/* TODO: <KneeScene /> */}
+        {/* Left sidebar — collapsible, 240px wide */}
+        <div
+          className="flex-shrink-0 overflow-hidden bg-slate-800 border-r border-slate-700 transition-[width] duration-300 ease-in-out"
+          style={{ width: sidebarOpen ? '240px' : '0px' }}
+        >
+          <div className="w-60 h-full overflow-y-auto overflow-x-hidden">
+            <AnatomySidebar />
+          </div>
+        </div>
+
+        {/* Center viewport — R3F Canvas fills this area */}
+        <main
+          id="viewport"
+          className="flex-1 relative bg-slate-950 overflow-hidden"
+        >
+          <JointScene config={config} />
+          <InfoCard />
         </main>
-        {/* TODO: <ProcedurePanel /> */}
+
+        {/* Right panel — 320px, slides in when procedure mode is active */}
+        <div
+          className="flex-shrink-0 overflow-hidden bg-slate-800 border-l border-slate-700 transition-[width] duration-300 ease-in-out"
+          style={{ width: viewMode === 'procedure' ? '320px' : '0px' }}
+        >
+          <div className="w-80 h-full overflow-y-auto overflow-x-hidden">
+            <ProcedurePanel />
+          </div>
+        </div>
       </div>
-      <p className="p-4 text-slate-400 absolute bottom-4 left-1/2 -translate-x-1/2">
-        Layout placeholder — Teammate B
-      </p>
     </div>
   );
 }
