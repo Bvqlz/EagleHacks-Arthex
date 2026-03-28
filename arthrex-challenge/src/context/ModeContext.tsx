@@ -16,14 +16,24 @@ interface ModeContextValue {
   setMode: (mode: Mode) => void;
 }
 
+const STORAGE_KEY = 'orthovision_mode';
+
 const ModeContext = createContext<ModeContextValue>({
   mode: 'patient',
   setMode: () => {},
 });
 
 export function ModeProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<Mode>('patient');
-  // TODO: Persist to localStorage on change, read on mount
+  const [mode, setModeState] = useState<Mode>(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored === 'surgeon' ? 'surgeon' : 'patient';
+  });
+
+  const setMode = (m: Mode) => {
+    localStorage.setItem(STORAGE_KEY, m);
+    setModeState(m);
+  };
+
   return (
     <ModeContext.Provider value={{ mode, setMode }}>
       {children}
