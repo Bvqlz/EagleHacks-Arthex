@@ -2,11 +2,15 @@ import { useState } from 'react';
 import TopBar from './TopBar';
 import AnatomySidebar from './AnatomySidebar';
 import ProcedurePanel from '../procedure/ProcedurePanel';
-import KneeScene from '../scene/KneeScene';
+import JointScene from '../scene/JointScene';
+import InfoCard from '../procedure/InfoCard';
 import { useAppStore } from '../../store/appStore';
+import { scenes } from '../../data/scenes';
 
 export default function Layout() {
   const viewMode = useAppStore((s) => s.viewMode);
+  const activeSceneId = useAppStore((s) => s.activeSceneId);
+  const config = scenes[activeSceneId];
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
@@ -22,7 +26,6 @@ export default function Layout() {
           className="flex-shrink-0 overflow-hidden bg-slate-800 border-r border-slate-700 transition-[width] duration-300 ease-in-out"
           style={{ width: sidebarOpen ? '240px' : '0px' }}
         >
-          {/* Inner wrapper keeps content at fixed width so it doesn't reflow */}
           <div className="w-60 h-full overflow-y-auto overflow-x-hidden">
             <AnatomySidebar />
           </div>
@@ -33,7 +36,8 @@ export default function Layout() {
           id="viewport"
           className="flex-1 relative bg-slate-950 overflow-hidden"
         >
-          <KneeScene />
+          <JointScene config={config} />
+          <InfoCard />
         </main>
 
         {/* Right panel — 320px, slides in when procedure mode is active */}

@@ -13,6 +13,7 @@ const SECTIONS: {
   { id: 'bones', label: 'Bones', categories: ['bone'], accentColor: '#F5E6D3' },
   { id: 'ligaments', label: 'Ligaments', categories: ['ligament'], accentColor: '#E85D75' },
   { id: 'softTissue', label: 'Soft Tissue', categories: ['meniscus', 'tendon', 'cartilage'], accentColor: '#4ECDC4' },
+  { id: 'muscles', label: 'Muscles', categories: ['muscle'], accentColor: '#E57373' },
 ];
 
 export default function AnatomySidebar() {
@@ -27,6 +28,7 @@ export default function AnatomySidebar() {
     bones: true,
     ligaments: true,
     softTissue: true,
+    muscles: true,
   });
 
   const toggleSection = (id: string) =>
@@ -120,9 +122,7 @@ export default function AnatomySidebar() {
                       <li
                         key={structure.id}
                         className={`flex items-center gap-2.5 px-3 py-2 group transition-colors duration-100 ${
-                          isSelected
-                            ? 'bg-accent/10'
-                            : 'hover:bg-slate-700/30'
+                          isSelected ? 'bg-accent/10' : 'hover:bg-slate-700/30'
                         }`}
                       >
                         {/* Color dot */}

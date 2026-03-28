@@ -1,26 +1,40 @@
+// SceneLighting — 3-point medical visualization lighting.
+// Warm main key light + cool fill + subtle rim for depth without drama.
+
 export default function SceneLighting() {
   return (
     <>
-      {/* Soft base fill */}
-      <ambientLight intensity={0.4} />
+      {/* Soft ambient fill so shadow areas stay visible */}
+      <ambientLight intensity={0.45} color="#e8eeff" />
 
-      {/* Key light — upper right, slightly warm */}
+      {/* Key light — upper right, slightly warm (clinical white) */}
       <directionalLight
-        position={[4, 6, 3]}
-        intensity={1.0}
-        color="#FFF8F0"
+        position={[40, 80, 50]}
+        intensity={1.1}
+        color="#fff8f0"
         castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-        shadow-camera-near={0.5}
-        shadow-camera-far={20}
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-near={1}
+        shadow-camera-far={300}
+        shadow-camera-left={-80}
+        shadow-camera-right={80}
+        shadow-camera-top={80}
+        shadow-camera-bottom={-80}
       />
 
-      {/* Fill light — lower left, cool */}
-      <directionalLight position={[-3, -2, -2]} intensity={0.3} color="#E8F4FF" />
+      {/* Fill light — lower left, cool tone to separate depth planes */}
+      <directionalLight
+        position={[-40, -20, -30]}
+        intensity={0.28}
+        color="#c0d8ff"
+      />
 
-      {/* Subtle rim / back light for depth */}
-      <pointLight position={[0, -2, -4]} intensity={0.25} color="#A8D8EA" />
+      {/* Rim / back light — behind model, adds silhouette separation */}
+      <directionalLight
+        position={[5, 20, -70]}
+        intensity={0.18}
+        color="#ffffff"
+      />
     </>
   );
 }

@@ -1,103 +1,86 @@
 import { useRef, useEffect } from 'react';
 import { OrbitControls } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
+import { type OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
+import type { SceneConfig } from '../../data/scenes/types';
 import { useAppStore } from '../../store/appStore';
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
-// Named camera presets: [position, lookAt target]
-const CAMERA_VIEWS: Record<string, [THREE.Vector3, THREE.Vector3]> = {
-  default:   [new THREE.Vector3(0.8, 0.3, 2.5), new THREE.Vector3(0, 0, 0)],
-  anterior:  [new THREE.Vector3(0,   0.1,  2.5), new THREE.Vector3(0, 0, 0)],
-  posterior: [new THREE.Vector3(0,   0.1, -2.5), new THREE.Vector3(0, 0, 0)],
-  lateral:   [new THREE.Vector3(2.5, 0.1,  0),   new THREE.Vector3(0, 0, 0)],
-  medial:    [new THREE.Vector3(-2.5, 0.1, 0),   new THREE.Vector3(0, 0, 0)],
-  superior:  [new THREE.Vector3(0,   2.8,  0.4), new THREE.Vector3(0, 0, 0)],
-  inferior:  [new THREE.Vector3(0,  -2.8,  0.4), new THREE.Vector3(0, 0, 0)],
-};
+interface CameraControllerProps {
+  config: SceneConfig;
+}
 
-// Procedure step index → camera view name
-const STEP_VIEWS = [
-  'default',   // 0 - Patient Positioning
-  'anterior',  // 1 - Diagnostic Arthroscopy
-  'anterior',  // 2 - ACL Stump Debridement
-  'lateral',   // 3 - Graft Harvesting
-  'inferior',  // 4 - Tibial Tunnel Drilling
-  'superior',  // 5 - Femoral Tunnel Drilling
-  'anterior',  // 6 - Graft Passage & Fixation
-  'default',   // 7 - Closure & Rehab
-];
-
-const ANIM_DURATION = 1.0; // seconds
-
-export default function CameraController() {
+export default function CameraController({ config }: CameraControllerProps) {
   const { camera } = useThree();
   const controlsRef = useRef<OrbitControlsImpl>(null);
+  const { currentStep, viewMode } = useAppStore();
 
-  const currentStep = useAppStore((s) => s.currentStep);
-  const viewMode = useAppStore((s) => s.viewMode);
+  // Lerp targets — updated when step or scene changes
+  const targetPos    = useRef(new THREE.Vector3(...config.cameraPositions.default.position));
+  const targetLookAt = useRef(new THREE.Vector3(...config.cameraPositions.default.target));
+  const isAnimating  = useRef(false);
 
-  // Animation state (all in refs to avoid re-renders)
-  const animating = useRef(false);
-  const animProgress = useRef(0);
-  const startPos = useRef(new THREE.Vector3());
-  const startTarget = useRef(new THREE.Vector3());
-  const targetPos = useRef(new THREE.Vector3());
-  const targetTarget = useRef(new THREE.Vector3());
-
-  // Trigger camera animation when procedure step changes
+  // ── Jump to default position when the scene config changes ───────────────
   useEffect(() => {
-    if (viewMode !== 'procedure') return;
+    const { position, target } = config.cameraPositions.default;
+    camera.position.set(...position);
+    targetPos.current.set(...position);
+    targetLookAt.current.set(...target);
+    if (controlsRef.current) {
+      controlsRef.current.target.set(...target);
+      controlsRef.current.update();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.id]);
 
-    const viewKey = STEP_VIEWS[currentStep] ?? 'default';
-    const [pos, tgt] = CAMERA_VIEWS[viewKey];
+  // ── Animate to per-step camera position in procedure mode ────────────────
+  useEffect(() => {
+    if (viewMode !== 'procedure' || !config.procedure) return;
+    const step = config.procedure.steps[currentStep];
+    if (!step) return;
+    const preset = config.cameraPositions[step.cameraFocus];
+    if (!preset) return;
+    targetPos.current.set(...preset.position);
+    targetLookAt.current.set(...preset.target);
+    isAnimating.current = true;
+  }, [currentStep, viewMode, config]);
 
-    startPos.current.copy(camera.position);
-    startTarget.current.copy(
-      controlsRef.current ? controlsRef.current.target : new THREE.Vector3()
-    );
-    targetPos.current.copy(pos);
-    targetTarget.current.copy(tgt);
-
-    animProgress.current = 0;
-    animating.current = true;
-
-    if (controlsRef.current) controlsRef.current.enabled = false;
-  }, [currentStep, viewMode]);
-
+  // ── Smooth lerp every frame ───────────────────────────────────────────────
   useFrame((_, delta) => {
-    if (!animating.current) return;
+    if (!isAnimating.current) return;
 
-    animProgress.current = Math.min(animProgress.current + delta / ANIM_DURATION, 1);
+    // Exponential ease: bigger delta → faster catch-up, capped so it never overshoots
+    const alpha = 1 - Math.pow(0.001, delta);
 
-    // Cubic ease-in-out
-    const p = animProgress.current;
-    const t = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-
-    camera.position.lerpVectors(startPos.current, targetPos.current, t);
+    camera.position.lerp(targetPos.current, alpha);
 
     if (controlsRef.current) {
-      controlsRef.current.target.lerpVectors(startTarget.current, targetTarget.current, t);
+      controlsRef.current.target.lerp(targetLookAt.current, alpha);
       controlsRef.current.update();
     }
 
-    if (animProgress.current >= 1) {
-      animating.current = false;
-      if (controlsRef.current) controlsRef.current.enabled = true;
+    // Stop animating once close enough
+    if (
+      camera.position.distanceTo(targetPos.current) < 0.05 &&
+      (!controlsRef.current ||
+        controlsRef.current.target.distanceTo(targetLookAt.current) < 0.05)
+    ) {
+      camera.position.copy(targetPos.current);
+      controlsRef.current?.target.copy(targetLookAt.current);
+      controlsRef.current?.update();
+      isAnimating.current = false;
     }
   });
 
   return (
     <OrbitControls
       ref={controlsRef}
-      minDistance={0.8}
-      maxDistance={5.5}
-      maxPolarAngle={Math.PI * 0.88}
+      minDistance={0.05}
+      maxDistance={2.5}
+      maxPolarAngle={Math.PI * 0.92}
+      minPolarAngle={Math.PI * 0.05}
       enableDamping
-      dampingFactor={0.08}
-      rotateSpeed={0.65}
-      zoomSpeed={0.9}
-      panSpeed={0.5}
+      dampingFactor={0.06}
     />
   );
 }

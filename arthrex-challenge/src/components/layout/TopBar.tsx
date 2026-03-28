@@ -26,7 +26,6 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
         </button>
 
         <div className="flex items-center gap-2">
-          {/* Medical cross / bone icon */}
           <svg className="w-6 h-6 text-accent flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
             <path d="M8.5 2a2.5 2.5 0 00-2 4l1 1-4 4-1-1a2.5 2.5 0 10-1 3.5l1 1 4-4 1 1a2.5 2.5 0 103.5-1l-1-1 4-4 1 1a2.5 2.5 0 101-3.5l-1-1-4 4-1-1A2.5 2.5 0 008.5 2z" />
           </svg>

@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 
 interface AppState {
-  // Anatomy visibility
+  // ── Active scene ───────────────────────────────────────────────────────
+  activeSceneId: string;
+  setActiveScene: (sceneId: string) => void;
+
+  // ── Anatomy visibility (keyed by canonical structure ID) ───────────────
   visibleStructures: Record<string, boolean>;
   toggleStructure: (id: string) => void;
   showAll: () => void;
@@ -9,22 +13,29 @@ interface AppState {
   showAllInCategory: (category: string, structures: string[]) => void;
   hideAllInCategory: (category: string, structures: string[]) => void;
 
-  // Selection
+  // ── Selection ──────────────────────────────────────────────────────────
   selectedStructure: string | null;
   setSelectedStructure: (id: string | null) => void;
 
-  // Procedure walkthrough
+  // ── Procedure step highlights ──────────────────────────────────────────
+  highlightedStructures: string[];
+  setHighlightedStructures: (ids: string[]) => void;
+
+  // ── Procedure walkthrough ──────────────────────────────────────────────
   currentStep: number;
   setCurrentStep: (step: number) => void;
   totalSteps: number;
 
-  // View mode
+  // ── View mode ──────────────────────────────────────────────────────────
   viewMode: 'explore' | 'procedure';
   setViewMode: (mode: 'explore' | 'procedure') => void;
+
+  // ── Scene initialisation ───────────────────────────────────────────────
+  /** Reset visibility to all-visible for the given canonical ID list */
+  initStructures: (ids: string[]) => void;
 }
 
-// Initialize with all structures visible
-// Structure IDs will be updated once we inspect the GLB model
+// Default knee structures — canonical IDs matching anatomyData and modelMapping
 const initialStructures: Record<string, boolean> = {
   femur: true,
   tibia: true,
@@ -38,9 +49,25 @@ const initialStructures: Record<string, boolean> = {
   lateral_meniscus: true,
   articular_cartilage: true,
   patellar_tendon: true,
+  quadriceps: true,
+  hamstrings: true,
+  gastrocnemius: true,
+  other_muscles: true,
 };
 
 export const useAppStore = create<AppState>((set) => ({
+  // ── Active scene ───────────────────────────────────────────────────────
+  activeSceneId: 'knee',
+  setActiveScene: (sceneId) =>
+    set({
+      activeSceneId: sceneId,
+      selectedStructure: null,
+      highlightedStructures: [],
+      currentStep: 0,
+      viewMode: 'explore',
+    }),
+
+  // ── Anatomy visibility ─────────────────────────────────────────────────
   visibleStructures: initialStructures,
 
   toggleStructure: (id) =>
@@ -81,13 +108,30 @@ export const useAppStore = create<AppState>((set) => ({
       },
     })),
 
+  // ── Selection ──────────────────────────────────────────────────────────
   selectedStructure: null,
   setSelectedStructure: (id) => set({ selectedStructure: id }),
 
+  // ── Procedure step highlights ──────────────────────────────────────────
+  highlightedStructures: [],
+  setHighlightedStructures: (ids) => set({ highlightedStructures: ids }),
+
+  // ── Procedure walkthrough ──────────────────────────────────────────────
   currentStep: 0,
   setCurrentStep: (step) => set({ currentStep: step }),
   totalSteps: 8,
 
+  // ── View mode ──────────────────────────────────────────────────────────
   viewMode: 'explore',
   setViewMode: (mode) => set({ viewMode: mode }),
+
+  // ── Scene initialisation ───────────────────────────────────────────────
+  initStructures: (ids) =>
+    set({
+      visibleStructures: Object.fromEntries(ids.map((id) => [id, true])),
+      selectedStructure: null,
+      highlightedStructures: [],
+      currentStep: 0,
+      viewMode: 'explore',
+    }),
 }));
