@@ -4,7 +4,9 @@ import AnatomySidebar from './AnatomySidebar';
 import ProcedurePanel from '../procedure/ProcedurePanel';
 import JointScene from '../scene/JointScene';
 import InfoCard from '../procedure/InfoCard';
+import GestureOverlay from '../ui/GestureOverlay';
 import { useAppStore } from '../../store/appStore';
+import { useHandTracking } from '../../hooks/useHandTracking';
 import { scenes } from '../../data/scenes';
 
 export default function Layout() {
@@ -12,6 +14,9 @@ export default function Layout() {
   const activeSceneId = useAppStore((s) => s.activeSceneId);
   const config = scenes[activeSceneId];
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Maintain WebSocket connection to the Python hand-tracking sidecar
+  useHandTracking();
 
   return (
     <div className="h-screen bg-slate-900 text-white flex flex-col overflow-hidden">
@@ -35,6 +40,7 @@ export default function Layout() {
         >
           <JointScene config={config} />
           <InfoCard />
+          <GestureOverlay />
         </main>
 
         {/* Right panel — 320px, slides in when procedure mode is active */}

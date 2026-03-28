@@ -11,15 +11,16 @@ This document explains how the system is built, how each layer works, and how to
 3. [Three.js & React Three Fiber — 3D Model Loading](#3-threejs--react-three-fiber--3d-model-loading)
 4. [Tailwind CSS — UI Generation](#4-tailwind-css--ui-generation)
 5. [Zustand — Shared State](#5-zustand--shared-state)
-6. [ACL Reconstruction Walkthrough — Step System](#6-acl-reconstruction-walkthrough--step-system)
-7. [LLM Research Agent Integration](#7-llm-research-agent-integration)
-8. [File Map](#8-file-map)
+6. [Multi-Scene Architecture](#6-multi-scene-architecture)
+7. [ACL Reconstruction Walkthrough — Step System](#7-acl-reconstruction-walkthrough--step-system)
+8. [Hand Tracking Sidecar](#8-hand-tracking-sidecar)
+9. [File Map](#9-file-map)
 
 ---
 
 ## 1. Project Overview
 
-OrthoVision 3D is a browser-based 3D educational tool for ACL reconstruction surgery. It has two audiences:
+OrthoVision 3D is a browser-based 3D educational tool for orthopaedic surgery. It has two audiences:
 
 - **Surgeons / residents** — clinical terminology, instrument details, anatomical precision
 - **Patients** — plain-language descriptions, reassuring tone, simplified step progression
@@ -35,6 +36,7 @@ The tech stack:
 | State management | Zustand | 5 |
 | Styling | Tailwind CSS | 4 |
 | Build tool | Vite | 8 |
+| Hand tracking | MediaPipe Hands (Python sidecar) | mediapipe 0.10.21 |
 
 ---
 
@@ -51,62 +53,48 @@ function Badge({ label }: { label: string }) {
 }
 ```
 
-React re-renders a component whenever its **props** (passed-in values) or **state** (internal values managed with `useState`) change. It diffs the old and new output and applies only the changed parts to the real DOM — this is called reconciliation.
+React re-renders a component whenever its **props** (passed-in values) or **state** (internal values managed with `useState`) change.
 
 The component tree in this project:
 
 ```
 App
-└── ModeProvider          ← React Context: surgeon / patient mode
-    └── Layout            ← Shell: TopBar + sidebar + viewport + panel
-        ├── TopBar         ← View mode tabs + mode toggle
-        ├── AnatomySidebar ← Structure list with toggle switches
-        ├── KneeScene      ← R3F Canvas (3D rendering)
-        │   ├── SceneLighting
-        │   ├── KneeModel
-        │   └── CameraController
-        └── ProcedurePanel ← Step walkthrough, info card
+└── ModeProvider              ← React Context: surgeon / patient mode
+    ├── Layout                ← Shell: TopBar + sidebar + viewport + right panel
+    │   ├── TopBar            ← Logo + view mode tabs (Explore/Procedure) + mode toggle
+    │   ├── AnatomySidebar    ← Collapsible structure groups with toggle switches
+    │   ├── JointScene        ← R3F Canvas (3D rendering)
+    │   │   ├── SceneLighting
+    │   │   ├── JointModel    ← GLB mesh rendering + selection + visibility
+    │   │   └── CameraController  ← OrbitControls + procedure camera + gesture drive
+    │   ├── InfoCard          ← Floating overlay for selected structure
+    │   └── GestureOverlay    ← Hand tracking status + active gesture label
+    └── WelcomeModal          ← Mode selection on first load
 ```
 
 **Hooks used:**
 
 | Hook | What it does |
 |---|---|
-| `useState` | Local component state (e.g. sidebar open/closed) |
-| `useEffect` | Side effects after render (e.g. clone materials, resize canvas) |
-| `useRef` | Mutable value that doesn't trigger re-render (e.g. Three.js object refs) |
-| `useMemo` | Memoize expensive computation (e.g. cloning Three.js materials) |
-| `useContext` | Read from React Context (e.g. surgeon/patient mode) |
+| `useState` | Local component state (e.g. sidebar open/closed, section collapse) |
+| `useEffect` | Side effects after render (e.g. camera reset on scene change) |
+| `useRef` | Mutable value that doesn't trigger re-render (e.g. Three.js object refs, WebSocket ref) |
+| `useMemo` | Memoize expensive computation (e.g. building the controlled/background mesh lists) |
+| `useContext` | Read from React Context (surgeon/patient mode) |
 
 ### How TypeScript Fits In
 
-TypeScript adds **static types** to JavaScript. The compiler catches mistakes before the code runs. In this project, every component's props are typed with an interface or inline type annotation.
+TypeScript adds **static types** to JavaScript. Every component's props, store shapes, and data structures are typed.
 
-```tsx
-// Without TypeScript (JavaScript)
-function ToggleSwitch({ checked, onChange, color }) { ... }
+**Where TypeScript matters most:**
 
-// With TypeScript — the compiler rejects wrong prop types at build time
-interface ToggleSwitchProps {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  color?: string;   // ? means optional
-}
-function ToggleSwitch({ checked, onChange, color }: ToggleSwitchProps) { ... }
-```
-
-**Where TypeScript matters most in this project:**
-
-- **Store types** (`src/store/appStore.ts`) — the `AppState` interface describes every field and action in the Zustand store. If a component reads `visibleStructures` and expects `Record<string, boolean>`, TypeScript enforces that throughout the codebase.
-- **Three.js interop** — Three.js objects like `THREE.Mesh`, `THREE.MeshStandardMaterial`, and `THREE.Vector3` are fully typed. When you traverse a scene graph and cast `child as THREE.Mesh`, TypeScript gives you autocomplete for `.geometry`, `.material`, `.position`, etc.
-- **R3F event types** — click and pointer events in React Three Fiber are typed as `ThreeEvent<MouseEvent>`. This ensures you can safely access `event.object.name`, `event.stopPropagation()`, etc.
-- **Data files** — `src/data/anatomyData.ts` exports `AnatomyStructure[]` with an interface. Any component that imports it gets correct autocomplete and compile-time safety.
-
-**To extend TypeScript types:**
-
-- Adding a new field to the store: add it to the `AppState` interface in `appStore.ts`. TypeScript will immediately flag every place that needs updating.
-- Adding a new anatomy structure property: add it to the `AnatomyStructure` interface in `anatomyData.ts`. TypeScript will require all existing entries to include it.
-- Adding a new procedure step field: add it to `ProcedureStep` in `procedureSteps.ts`.
+- **`SceneConfig`** (`src/data/scenes/types.ts`) — the shape of every scene definition (structures, camera positions, procedure steps). Any scene file that doesn't match the interface is a compile error.
+- **`AppState`** (`src/store/appStore.ts`) — describes every field and action in the main Zustand store.
+- **`GestureStore`** (`src/store/gestureStore.ts`) — describes the hand tracking rates emitted by the Python sidecar.
+- **`AnatomyStructure`** (`src/data/anatomyData.ts`) — typed inline array; `anatomyById` lookup is derived from it.
+- **`StructureId`** (`src/data/modelMapping.ts`) — a `const` union of all canonical structure ID strings. TypeScript rejects any code that uses an unknown ID.
+- **Three.js interop** — `THREE.Mesh`, `THREE.MeshStandardMaterial`, `THREE.Vector3` are fully typed. Cast `child as THREE.Mesh` to get autocomplete on `.geometry`, `.material`, etc.
+- **R3F event types** — click and pointer events are typed as `ThreeEvent<MouseEvent>`. Provides `.object.name`, `.stopPropagation()`, etc.
 
 ---
 
@@ -114,25 +102,13 @@ function ToggleSwitch({ checked, onChange, color }: ToggleSwitchProps) { ... }
 
 ### How Three.js Renders 3D
 
-Three.js is a WebGL abstraction library. It manages:
-
-- A **Scene** — a tree of 3D objects
-- A **Camera** — defines the viewpoint and field of view
-- A **Renderer** — draws the scene to a `<canvas>` element using the GPU
-
-Every visible object in the scene is a **Mesh**: a combination of **Geometry** (vertex positions, normals, UVs) and **Material** (how light interacts with the surface — color, roughness, metallicness, transparency).
+Three.js manages a **Scene**, a **Camera**, and a **Renderer** that draws to a `<canvas>` using WebGL. Every visible object is a **Mesh** = Geometry (vertices) + Material (surface properties).
 
 ### React Three Fiber (R3F)
 
-R3F wraps Three.js in React. Instead of imperative Three.js code, you write declarative JSX:
+R3F wraps Three.js in React. Instead of imperative API calls, you write declarative JSX:
 
 ```tsx
-// Imperative Three.js (without R3F)
-const geometry = new THREE.BoxGeometry(1, 1, 1);
-const material = new THREE.MeshStandardMaterial({ color: 'red' });
-const mesh = new THREE.Mesh(geometry, material);
-scene.add(mesh);
-
 // Declarative R3F
 <mesh>
   <boxGeometry args={[1, 1, 1]} />
@@ -140,123 +116,123 @@ scene.add(mesh);
 </mesh>
 ```
 
-R3F creates a **fiber renderer** — a second React renderer running in parallel with the DOM renderer. It maps JSX elements to Three.js objects. When React re-renders a component, R3F diffs the 3D scene tree the same way React diffs the DOM.
+R3F creates a second React renderer (the "fiber" renderer) running alongside the DOM renderer. When React re-renders, R3F diffs the 3D scene tree the same way React diffs the DOM.
 
-### Loading the GLB Model
+### The 3D Model
 
-The model file lives at `public/models/knee.glb`. It is loaded by the `useGLTF` hook from `@react-three/drei`:
+The model file is `public/models/lower-limb.glb`. It is a real-world-scale anatomical model of the lower limb (~462 nodes, ~452 meshes) loaded by `useGLTF`:
 
 ```tsx
-// src/components/scene/KneeModel.tsx
-const { scene } = useGLTF('/models/knee.glb');
+// src/components/scene/JointModel.tsx
+useGLTF.preload('/models/lower-limb.glb');
+const gltf = useGLTF('/models/lower-limb.glb');
 ```
 
-`useGLTF` uses Three.js's `GLTFLoader` under the hood. It returns the parsed scene graph. It also integrates with React's `<Suspense>` system — the component suspends (pauses rendering) while the file downloads, and resumes when it's ready. This is why `<KneeScene>` wraps `<KneeModel>` in `<Suspense fallback={null}>`.
+Unlike the original Sketchfab 3-mesh prototype, this model has **individual mesh nodes per anatomical structure** — each ligament, bone, and muscle is a separate `THREE.Mesh` with its own node name.
 
-**What `useGLTF` returns:**
+**Node name sanitization**
 
-```
-gltf.scene       — the root THREE.Group containing the full model hierarchy
-gltf.nodes       — flat dictionary: { nodeName: THREE.Object3D | THREE.Mesh }
-gltf.materials   — flat dictionary: { materialName: THREE.Material }
-gltf.animations  — animation clips (none in this model)
-```
-
-### The Model's Node Structure
-
-This specific model (`knee.glb`) was exported from Sketchfab with 3 combined meshes:
+Three.js `GLTFLoader` modifies node names during parsing:
+- Spaces → underscore `_`
+- Dots → removed entirely
 
 ```
-Sketchfab_model                  ← root Group (has Y-up rotation matrix)
-└── caa7834d....fbx              ← Group (has 0.01 scale — cm → units)
-    └── RootNode
-        └── Low
-            ├── Bone_Low
-            │   └── Bone_Low_bone_0          ← THREE.Mesh, material: "bone"
-            ├── Mash_Low
-            │   └── Mash_Low_mash_0          ← THREE.Mesh, material: "mash"
-            └── Transparenty_Low
-                └── Transparenty_Low_Opacyty_0  ← THREE.Mesh, material: "Opacyty"
+"Anterior cruciate ligament.r" → "Anterior_cruciate_ligamentr"
+"Femur.r"                      → "Femurr"
+"Art cart of femur distal end.r" → "Art_cart_of_femur_distal_endr"
 ```
 
-**Key point:** This model does not have individual per-anatomy meshes. All bones (femur, tibia, patella, fibula) are baked into one mesh. All ligaments (ACL, PCL, MCL, LCL) are baked into one transparent mesh. This is a known limitation of the source asset.
-
-**The mapping from anatomy IDs to meshes** is defined in `src/data/modelMapping.ts`:
+This is handled by `sanitizeNodeName()` in `JointModel.tsx` when building the allowlist, and by the normalisation in `resolveStructureId()` in `modelMapping.ts`:
 
 ```typescript
-export const BONE_STRUCTURE_IDS = ['femur', 'tibia', 'fibula', 'patella'];
-// → all map to mesh node: 'Bone_Low_bone_0'
+function resolveStructureId(meshName: string): StructureId | null {
+  const key = meshName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/, '');
+  return MESH_NAME_ALIASES[key] ?? null;
+}
+```
 
-export const LIGAMENT_STRUCTURE_IDS = ['acl', 'pcl', 'mcl', 'lcl'];
-// → all map to mesh node: 'Transparenty_Low_Opacyty_0'
+### Controlled vs. Background Meshes
 
-export const SOFT_TISSUE_STRUCTURE_IDS = ['medial_meniscus', ...];
-// → all map to mesh node: 'Mash_Low_mash_0'
+`JointModel` splits the scene into two categories:
+
+| Type | Description | Interaction |
+|---|---|---|
+| **Controlled** | Resolves to a canonical `StructureId` via `MESH_NAME_ALIASES` | Toggleable, selectable, animated |
+| **Background** | Listed in `config.structures` but no canonical ID | Always visible, not interactive |
+
+Only meshes whose sanitized names appear in the active `SceneConfig.structures` array are rendered — all other nodes (veins, nerves, skin, etc.) are filtered out.
+
+```typescript
+// JointModel.tsx — allowlist from config
+const allowedNames = useMemo(
+  () => new Set(config.structures.map((s) => sanitizeNodeName(s.nodeName))),
+  [config.structures]
+);
 ```
 
 ### Material Cloning and Animation
 
-Three.js materials are shared by reference. If two meshes share the same `THREE.MeshStandardMaterial` instance and you change its `opacity`, both meshes change. To control each mesh independently, materials are cloned on mount:
+Materials are shared by reference in the GLB. To control each mesh independently, `StructureMesh` clones the material with `useMemo`:
 
 ```tsx
-// In KneeModel.tsx — runs once via useEffect
-scene.traverse((child) => {
-  if (!(child instanceof THREE.Mesh)) return;
-  const mat = (child.material as THREE.MeshStandardMaterial).clone();
-  mat.transparent = true;
-  mat.emissive = new THREE.Color('#F5E6D3');
-  mat.emissiveIntensity = 0;
-  child.material = mat;            // replace shared material with our owned clone
-  matsRef.current[key] = mat;      // keep a ref for animation
-});
+const mat = useMemo(() => {
+  const m = (originalMaterial as THREE.MeshStandardMaterial).clone();
+  m.transparent = true;
+  m.emissive = new THREE.Color(0);
+  return m;
+}, [originalMaterial]);
 ```
 
-Opacity and emissive glow are animated every frame using `useFrame` — R3F's animation loop:
+Opacity and emissive glow are animated every frame in `useFrame` with exponential lerp:
 
 ```tsx
 useFrame(() => {
-  const lerp = THREE.MathUtils.lerp;
-  mat.opacity = lerp(mat.opacity, targetOpacity, 0.09);       // smooth fade
-  mat.emissiveIntensity = lerp(mat.emissiveIntensity, targetGlow, 0.09);
+  const targetOpacity   = isVisible ? baseOpacity : 0.05;
+  const targetIntensity = isSelected ? 0.45 : isHighlighted ? 0.25 : 0.0;
+
+  mat.opacity           = THREE.MathUtils.lerp(mat.opacity, targetOpacity, 0.08);
+  mat.emissiveIntensity = THREE.MathUtils.lerp(mat.emissiveIntensity, targetIntensity, 0.1);
+  // ...
 });
 ```
 
-`lerp(current, target, 0.09)` moves 9% of the remaining distance each frame — this produces a smooth exponential approach that feels natural without requiring a fixed animation duration.
+`lerp(current, target, 0.08)` moves 8% of the remaining distance each frame — a smooth exponential approach that needs no fixed animation duration.
 
-### Auto-Centering the Model
+**Emissive color by structure type** is defined in `STRUCTURE_EMISSIVE` in `modelMapping.ts`:
 
-The GLB's geometry is in centimeters. After loading, the model's bounding box is computed and a wrapper group is scaled and repositioned so the model fills a ~2.8-unit sphere centered at the origin:
+| Category | Color |
+|---|---|
+| bone | `#F5E6D3` warm cream |
+| ligament | `#E85D75` coral red |
+| meniscus | `#4ECDC4` teal |
+| cartilage | `#85C1E9` light blue |
+| tendon | `#F39C12` amber |
+| muscle | `#E57373` salmon red |
 
-```tsx
-const box = new THREE.Box3().setFromObject(scene);
-const center = box.getCenter(new THREE.Vector3());
-const maxDim = Math.max(...box.getSize(new THREE.Vector3()).toArray());
-const scale = 2.8 / maxDim;
-groupRef.current.scale.setScalar(scale);
-groupRef.current.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
-```
+Selected structures get an accent-blue emissive (`#3B82F6`) and a 2.5% scale-up.
 
-**To iterate on this:** If a new model with individual meshes is added, update `src/data/modelMapping.ts` with the new node names, then update the `MESH_TO_KEY` and `MESH_TO_PRIMARY_ID` maps in `KneeModel.tsx`. The rest of the visibility/selection system works automatically.
+### Lighting
+
+`SceneLighting` uses a 3-point medical visualization setup:
+
+| Light | Position | Color | Role |
+|---|---|---|---|
+| Ambient | global | `#e8eeff` cool white | Soft fill, prevents pure black shadows |
+| Key (directional) | upper-right front | `#fff8f0` warm clinical white | Primary shading, casts shadows |
+| Fill (directional) | lower-left rear | `#c0d8ff` cool blue | Separates depth planes |
+| Rim (directional) | directly behind | `#ffffff` | Silhouette separation |
 
 ### Camera System
 
-`CameraController.tsx` provides:
+`CameraController` provides three behaviours that run together in `useFrame`:
 
-1. **OrbitControls** (`@react-three/drei`) — lets the user rotate, zoom, and pan the camera by dragging and scrolling. Constrained to `minDistance: 0.8`, `maxDistance: 5.5`, with damping (`dampingFactor: 0.08`) for smooth deceleration.
+1. **OrbitControls** (`@react-three/drei`) — mouse/touch drag, scroll zoom. Constrained to `minDistance: 0.05`, `maxDistance: 2.5`, with `dampingFactor: 0.06`.
 
-2. **Procedural animation** — when `currentStep` changes in procedure mode, the camera smoothly interpolates to a preset position using cubic ease-in-out over 1 second. OrbitControls are disabled during the animation and re-enabled after.
+2. **Gesture-driven control** — reads `gestureStore` each frame and applies zoom, rotateX, and rotateY rates scaled by `delta` time. This overrides OrbitControls while active and cancels any in-progress procedural animation.
 
-```typescript
-// Named presets in CameraController.tsx
-const CAMERA_VIEWS = {
-  anterior:  [new THREE.Vector3(0, 0.1, 2.5), new THREE.Vector3(0, 0, 0)],
-  posterior: [new THREE.Vector3(0, 0.1, -2.5), ...],
-  superior:  [new THREE.Vector3(0, 2.8, 0.4), ...],
-  // ...
-};
-```
+3. **Procedural animation** — when `currentStep` changes in procedure mode, the camera smoothly lerps to the step's `cameraFocus` preset using `1 - Math.pow(0.001, delta)` per frame (exponential approach).
 
-**To add a new camera preset:** Add an entry to `CAMERA_VIEWS` and map it in `STEP_VIEWS` at the matching step index.
+Camera presets come from `SceneConfig.cameraPositions` — six named views (`default`, `anterior`, `posterior`, `lateral`, `medial`, `superior`, `inferior`) each with a `position` and `target`.
 
 ---
 
@@ -264,23 +240,19 @@ const CAMERA_VIEWS = {
 
 ### How Tailwind Works
 
-Tailwind CSS is a utility-first CSS framework. Instead of writing `.sidebar { background: #1e293b; padding: 12px; }` in a separate stylesheet, you compose small single-purpose classes directly in JSX:
+Tailwind CSS is a utility-first CSS framework. Classes are composed directly in JSX rather than in separate stylesheets:
 
 ```tsx
-// Tailwind: each class does one thing
 <aside className="w-60 bg-slate-800 border-r border-slate-700 overflow-y-auto p-3">
 ```
 
-**At build time**, Tailwind scans every `.tsx` file for class names. It generates a CSS file containing only the classes that are actually used. Classes that don't appear in the source code are not included. This is why the final CSS bundle (`dist/assets/index-*.css`) is small (~24 KB) despite Tailwind having thousands of utility classes.
+At build time, Tailwind scans every `.tsx` file and generates only the classes that are used. The final CSS bundle is ~24 KB.
 
 ### Tailwind v4 and Custom Tokens
 
-This project uses Tailwind v4, which reads theme configuration from a CSS file (`src/styles/index.css`) using the `@theme` directive instead of a `tailwind.config.js` file:
+This project uses Tailwind v4, configured via the `@theme` directive in `src/styles/index.css`:
 
 ```css
-/* src/styles/index.css */
-@import "tailwindcss";
-
 @theme {
   --color-bone:        #F5E6D3;   /* warm cream — bone structures */
   --color-ligament:    #E85D75;   /* coral red — ligament structures */
@@ -291,11 +263,9 @@ This project uses Tailwind v4, which reads theme configuration from a CSS file (
 }
 ```
 
-Tailwind v4 reads these `--color-*` variables and generates utility classes automatically: `bg-bone`, `text-ligament`, `border-soft-tissue`, `bg-accent/20` (20% opacity), etc.
+Tailwind v4 auto-generates `bg-bone`, `text-ligament`, `border-soft-tissue`, `bg-accent/20` (20% opacity), etc. from these variables.
 
-### Dark Theme Strategy
-
-The dark theme is built from Tailwind's `slate` color scale:
+### Dark Theme
 
 | Role | Class | Value |
 |---|---|---|
@@ -306,34 +276,18 @@ The dark theme is built from Tailwind's `slate` color scale:
 | Secondary text | `text-slate-400` | `#94a3b8` |
 | Primary text | `text-white` | `#ffffff` |
 
-### Responsive / Interactive States
+### Panel Animations
 
-Tailwind uses **variant prefixes** for states and breakpoints:
-
-```tsx
-// hover: prefix — applies only on hover
-<button className="text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
-
-// sm: prefix — applies at ≥640px screen width
-<span className="hidden sm:block">Mode</span>
-
-// focus: prefix — focus ring for accessibility
-<button className="focus:outline-none focus:ring-2 focus:ring-accent">
-```
-
-### Animations
-
-Smooth panel expand/collapse is handled via CSS transitions on arbitrary values:
+The sidebar (left) and procedure panel (right) slide open/closed via CSS `width` transitions:
 
 ```tsx
-// Sidebar: width transitions between 240px and 0 in 300ms
 <div
   className="transition-[width] duration-300 ease-in-out"
   style={{ width: sidebarOpen ? '240px' : '0px' }}
 >
 ```
 
-The accordion sections in `AnatomySidebar` use `max-height` transitions:
+`AnatomySidebar` accordion sections use `max-height` transitions:
 
 ```tsx
 <div
@@ -342,289 +296,416 @@ The accordion sections in `AnatomySidebar` use `max-height` transitions:
 >
 ```
 
-**To add a new color to the theme:** Add a `--color-yourname: #hexvalue` line to `@theme` in `src/styles/index.css`. Tailwind will generate `bg-yourname`, `text-yourname`, `border-yourname`, etc. immediately.
-
-**To add a new component:** Create a `.tsx` file in `src/components/ui/`, export it, and add it to `src/components/index.ts`. Use Tailwind utility classes for styling. No separate CSS file needed.
-
 ---
 
 ## 5. Zustand — Shared State
 
-Zustand is a minimal state management library. The store is defined once in `src/store/appStore.ts` and consumed by any component using the `useAppStore` hook.
+There are two independent Zustand stores.
+
+### `appStore` (`src/store/appStore.ts`)
+
+The main application state.
 
 ```typescript
-// Reading state — subscribes to changes in visibleStructures only
-const visibleStructures = useAppStore((s) => s.visibleStructures);
-
-// Reading an action — actions don't change, so this won't trigger re-renders
-const toggleStructure = useAppStore((s) => s.toggleStructure);
+interface AppState {
+  activeSceneId: string;         // 'knee' | 'hip' | 'ankle'
+  visibleStructures: Record<string, boolean>;
+  selectedStructure: string | null;
+  highlightedStructures: string[];
+  currentStep: number;
+  totalSteps: number;             // 8 (derived from procedureSteps array length)
+  viewMode: 'explore' | 'procedure';
+  // ... actions: setActiveScene, toggleStructure, showAll, hideAll,
+  //              showAllInCategory, hideAllInCategory, setSelectedStructure,
+  //              setHighlightedStructures, setCurrentStep, setViewMode, initStructures
+}
 ```
 
-The selector pattern (`(s) => s.field`) is critical for performance: a component only re-renders when the specific slice it selects changes, not on every store update.
+**Switching scenes** (`setActiveScene`) resets `selectedStructure`, `highlightedStructures`, `currentStep`, and `viewMode` to defaults.
 
-**State flow:**
+**`initStructures(ids)`** is called to re-initialize `visibleStructures` to all-visible for a new set of canonical IDs. Use this when adding a new scene.
+
+**State flow example:**
 
 ```
 Sidebar toggle switch
     → toggleStructure('acl')
         → store: visibleStructures.acl = false
             → AnatomySidebar re-renders (toggle shows off)
-            → KneeModel useFrame sees target opacity = 0.12 → lerps mesh opacity down
+            → JointModel StructureMesh useFrame sees target opacity = 0.05 → lerps down
 ```
 
 ```
-Sidebar structure name click
+Structure name click
     → setSelectedStructure('acl')
         → store: selectedStructure = 'acl'
-            → KneeModel useFrame sees ligament group selected → lerps emissive up
-            → InfoCard re-renders with ACL description
+            → StructureMesh useFrame: emissive lerps to accent blue + scale 1.025
+            → InfoCard renders with ACL descriptions
 ```
 
 ```
 TopBar "Procedure" tab
     → setViewMode('procedure')
         → store: viewMode = 'procedure'
-            → Layout right panel slides in (CSS transition)
-            → CameraController animates camera to step-0 preset
+            → Layout right panel width transitions from 0 → 320px
+            → CameraController useEffect fires → begins lerp to step-0 camera preset
 ```
 
-**To add new global state:** Add the field and its setter/action to the `AppState` interface and `create()` call in `appStore.ts`. TypeScript will immediately surface all the places that need updating.
+### `gestureStore` (`src/store/gestureStore.ts`)
+
+Holds real-time rate values streamed from the Python hand tracking sidecar over WebSocket.
+
+```typescript
+interface GestureStore {
+  connected:   boolean;
+  gesture:     string | null;   // 'zoom' | 'point_rotate' | 'fist_holding' | 'reset' | null
+  hands:       number;          // 0, 1, or 2
+  zoomRate:    number;          // camera distance change rate (per second)
+  spinYRate:   number;          // reserved — always 0 currently
+  rotateXRate: number;          // pitch rate (rad/s)
+  rotateYRate: number;          // yaw rate (rad/s)
+  reset:       boolean;
+  // actions: update, setConnected, consumeReset
+}
+```
+
+`CameraController` calls `useGestureStore.getState()` inside `useFrame` (not the hook) to read rates without causing React re-renders.
+
+`GestureOverlay` uses the Zustand hook (`useGestureStore((s) => s.connected)`) — it only re-renders when those specific fields change.
 
 ---
 
-## 6. ACL Reconstruction Walkthrough — Step System
+## 6. Multi-Scene Architecture
+
+The app supports multiple joints (knee, hip, ankle) through a shared `SceneConfig` type.
+
+### `SceneConfig` (`src/data/scenes/types.ts`)
+
+```typescript
+interface SceneConfig {
+  id: string;
+  name: string;
+  description: string;
+  structures: JointStructure[];           // explicit allowlist of mesh nodes to render
+  cameraPositions: {
+    default, anterior, posterior,
+    lateral, medial, superior, inferior   // each: { position, target }
+  };
+  procedure: {
+    name: string;
+    steps: ProcedureStep[];
+  } | null;                               // null = explore-only scene
+  anatomyDescriptions: Record<string, { ... }>;
+}
+```
+
+`JointStructure` describes a single mesh:
+
+```typescript
+interface JointStructure {
+  nodeName: string;     // exact GLB name, e.g. "Anterior cruciate ligament.r"
+  displayName: string;  // UI label, e.g. "ACL"
+  category: 'bone' | 'ligament' | 'muscle';
+  group: string;        // sidebar group header, e.g. "Cruciate Ligaments"
+}
+```
+
+### Scene Registry
+
+```typescript
+// src/data/scenes/index.ts
+export const scenes: Record<string, SceneConfig> = {
+  knee:  kneeScene,   // full scene: 45 structures, 8-step ACL reconstruction
+  hip:   hipScene,    // placeholder — structures array empty, no procedure
+  ankle: ankleScene,  // placeholder — structures array empty, no procedure
+};
+```
+
+`Layout` reads `activeSceneId` from `appStore` and passes `scenes[activeSceneId]` as a `config` prop down to `JointScene`, `JointModel`, and `CameraController`. Every component is scene-agnostic — they read everything from `config`.
+
+### The Knee Scene
+
+`src/data/scenes/knee.ts` defines 45 structures across 8 sidebar groups:
+
+| Group | Structures |
+|---|---|
+| Bones | Femur, Tibia, Fibula, Patella |
+| Cartilage | Femoral, Tibial, Patellar, Prox. Tibiofib. cartilages |
+| Menisci | Medial, Lateral (+ individual horns) |
+| Cruciate Ligaments | ACL, PCL |
+| Collateral & Capsule | LCL, Joint Capsule, Transverse Lig., Meniscofemoral Lig., Prox. Tibiofib. Ligs., IT Band, Synovial Membrane |
+| Quadriceps | Rectus Femoris, Vastus ×3, Articularis Genus, Patellar Tendon, Infrapatellar Fat Pad |
+| Hamstrings | Semimembranosus, Semitendinosus, Biceps Femoris ×2 (+ tendons), Pes Anserinus |
+| Calf | Gastrocnemius (Medial/Lateral), Plantaris |
+| Other | Popliteus, Sartorius, Gracilis |
+
+Camera positions are in real-world metre scale. The knee joint midpoint is approximately `X≈-0.09, Y≈0.45, Z≈0.00` in the lower-limb model's coordinate system.
+
+### Adding a New Scene
+
+1. Create `src/data/scenes/yourjoint.ts` implementing `SceneConfig`.
+2. Populate `structures` with `nodeName` values from the GLB. (Inspect with `console.log` of `gltf.scene` or use Blender/glTF viewer.)
+3. Add camera presets tuned to the joint's bounding box.
+4. Register it in `src/data/scenes/index.ts`.
+5. Add anatomy descriptions to `anatomyData.ts` for any structures you want to make selectable.
+6. Add entries to `MESH_NAME_ALIASES` in `modelMapping.ts` for the new canonical IDs.
+
+---
+
+## 7. ACL Reconstruction Walkthrough — Step System
 
 ### Data Layer
 
-The walkthrough content lives in `src/data/procedureSteps.ts` (TypeScript) and `src/data/procedureSteps.json` (JSON). Each step has:
+All step content lives in `src/data/procedureSteps.ts` as a plain TypeScript array. Each step implements:
 
 ```typescript
 interface ProcedureStep {
   id: string;
   title: string;
-  surgeonTitle: string;          // shown in surgeon mode
-  patientTitle: string;          // shown in patient mode
-  surgeonDescription: string;    // clinical detail
-  patientDescription: string;    // plain language
-  instruments: string[];         // Arthrex product names → Badge components
-  focusStructures: string[];     // anatomy IDs to highlight in 3D scene
-  cameraPosition?: [number, number, number]; // optional override
+  surgeonTitle: string;
+  patientTitle: string;
+  surgeonDescription: string;   // clinical detail
+  patientDescription: string;   // plain language
+  instruments: string[];        // Arthrex product/instrument names
+  focusStructures: string[];    // canonical structure IDs to highlight
+  cameraPosition?: [number, number, number];
 }
 ```
 
-The `focusStructures` array drives two things simultaneously:
-1. The 3D model highlights those structures (emissive glow)
-2. The sidebar shows them as "selected" (accent background)
+`focusStructures` simultaneously drives:
+1. The 3D emissive highlight (via `highlightedStructures` in `appStore`)
+2. The "Anatomy Focus" badge list in `ProcedurePanel`
 
 ### The 8-Step ACL Walkthrough
 
-| Step | Title | Camera | Focus Structures |
+| # | Step ID | Title | Focus Structures |
 |---|---|---|---|
-| 1 | Diagnosis & Examination | anterior | `acl` |
-| 2 | Anesthesia & Portal Placement | anterior | none |
-| 3 | Diagnostic Arthroscopy | anterior | `acl`, `medial_meniscus`, `lateral_meniscus` |
-| 4 | Graft Harvesting | medial | `patellar_tendon` |
-| 5 | Tibial Tunnel Drilling | inferior | `tibia`, `acl` |
-| 6 | Femoral Tunnel Drilling | superior | `femur`, `acl` |
-| 7 | Graft Passage & Fixation | anterior | `acl` |
-| 8 | Final Assessment & Closure | default | all structures |
+| 1 | `step_01_diagnosis` | Diagnosis & Examination | acl, femur, tibia, medial_meniscus, lateral_meniscus |
+| 2 | `step_02_anesthesia_portals` | Anesthesia & Portal Placement | femur, tibia, patella, patellar_tendon |
+| 3 | `step_03_diagnostic_arthroscopy` | Diagnostic Arthroscopy | acl, medial_meniscus, lateral_meniscus, articular_cartilage, femur, tibia |
+| 4 | `step_04_graft_harvest` | Graft Harvesting | patellar_tendon, patella, tibia |
+| 5 | `step_05_tibial_tunnel` | Tibial Tunnel Drilling | tibia, acl, medial_meniscus, lateral_meniscus |
+| 6 | `step_06_femoral_tunnel` | Femoral Tunnel Drilling | femur, acl, articular_cartilage |
+| 7 | `step_07_graft_passage_fixation` | Graft Passage & Fixation | acl, femur, tibia |
+| 8 | `step_08_assessment_closure` | Final Assessment & Closure | acl, femur, tibia, medial_meniscus, lateral_meniscus, articular_cartilage |
 
 ### How a Step Change Propagates
 
-When the user clicks "Next" in `ProcedurePanel`:
-
 ```
-ProcedurePanel: setCurrentStep(currentStep + 1)
+ProcedurePanel: setCurrentStep(n)
     ↓
-Zustand store: currentStep = 3
+appStore: currentStep = n
     ↓
-ProcedurePanel re-renders: shows step 3 content (title, description, instruments)
+ProcedurePanel re-renders: shows step n (title, description, instruments, focus badges)
     ↓
-CameraController useEffect fires: begins 1s camera animation to step 3 preset ("medial")
+CameraController useEffect: reads config.procedure.steps[n].cameraFocus
+                            → starts lerp to that named camera preset
     ↓
-KneeModel useFrame: reads step 3's focusStructures → applies emissive glow to patellar tendon mesh
+JointModel StructureMesh useFrame: reads highlightedStructures
+                                   → applies emissive glow to focus structures
 ```
 
-The `useContent` hook (`src/hooks/useContent.ts`) abstracts the mode switch:
+### `useContent` Hook
+
+Abstracts mode switching so components don't touch `ModeContext` directly:
 
 ```typescript
 const { getText } = useContent();
-// Returns surgeonDescription in surgeon mode, patientDescription in patient mode
-const description = getText(step.surgeonDescription, step.patientDescription);
+// mode = 'surgeon' → reads obj.surgeonDescription
+// mode = 'patient' → reads obj.patientDescription
+const desc = getText(step as unknown as Record<string, unknown>, 'Description');
+const title = getText(step as unknown as Record<string, unknown>, 'Title');
 ```
 
 ### Extending the Walkthrough
 
-- **Add a step:** Add an entry to the `procedureSteps` array. The UI (ProgressBar, navigation) automatically adjusts — `totalSteps` is derived from the array length.
-- **Add a new camera angle:** Add a preset to `CAMERA_VIEWS` in `CameraController.tsx` and reference it in `STEP_VIEWS`.
-- **Add a new instrument badge:** Add the name string to the step's `instruments` array. `ProcedurePanel` maps these to `<Badge variant="instrument">` components automatically.
-- **Add step-level anatomy highlighting:** Add the structure ID to `focusStructures`. The 3D model's selection system handles the glow — no additional code needed.
+- **Add a step:** Append to the `procedureSteps` array. `totalSteps` is hardcoded to 8 in `appStore` — update it to match.
+- **Add a camera angle:** Add a preset to the scene's `cameraPositions` object and reference it in the step's `cameraFocus` field.
+- **Add an instrument badge:** Add the name string to `instruments`. `ProcedurePanel` maps these to `<Badge variant="instrument">` automatically.
+- **Add anatomy highlighting:** Add the canonical ID to `focusStructures`. The `StructureMesh` glow logic handles the rest.
 
 ---
 
-## 7. LLM Research Agent Integration
+## 8. Hand Tracking Sidecar
 
-An LLM research agent is responsible for generating the text content that powers the educational layer of the app. This is separated from the code layer by design — the agent writes to JSON files that the app reads, so content can be updated without changing TypeScript source.
+The hand tracking system is a Python process that runs alongside the browser, streams gesture data over WebSocket, and drives the 3D camera.
 
-### What the Agent Produces
+### System Diagram
 
-**`src/data/anatomyData.json`** — descriptions for all 12 knee structures:
-
-```json
-{
-  "structures": [
-    {
-      "id": "acl",
-      "name": "Anterior Cruciate Ligament",
-      "category": "ligament",
-      "color": "#E85D75",
-      "surgeon_description": "Clinical detail about the ACL...",
-      "patient_description": "Plain-language explanation...",
-      "fun_fact": "Memorable single sentence."
-    }
-  ]
-}
+```
+Webcam
+  ↓
+Python hand_tracker.py
+  ├── MediaPipe Hands   (landmark detection, 30 fps)
+  ├── Gesture logic     (pointing, fist, two-hand zoom)
+  ├── GestureDebouncer  (hysteresis: 3 frames in, 5 frames out)
+  ├── EMA smoothing     (α = 0.4)
+  └── WebSocket server  (ws://localhost:8765)
+        ↓  JSON @ 30 fps
+useHandTracking hook (TypeScript)
+  ├── Auto-reconnect (exponential backoff: 1 s → 30 s)
+  ├── Stale-message guard (zeroes rates if no message >200 ms)
+  └── gestureStore (Zustand)
+        ↓
+CameraController.useFrame()
+  └── Applies zoomRate / rotateXRate / rotateYRate to camera position
 ```
 
-**`src/data/procedureSteps.json`** — 8-step ACL reconstruction content:
+### Python Sidecar (`hand_tracker/hand_tracker.py`)
 
-```json
-{
-  "procedure": "ACL Reconstruction",
-  "steps": [
-    {
-      "step": 1,
-      "title": "Diagnosis & Examination",
-      "surgeon_description": "Clinical walkthrough...",
-      "patient_description": "Patient-friendly explanation...",
-      "instruments": ["Arthroscope", "Lachman Test", "MRI"],
-      "anatomy_highlight": ["acl"],
-      "camera_focus": "anterior"
-    }
-  ]
-}
-```
+**Threading model:**
+- **Main thread** — runs the OpenCV window + MediaPipe inference loop (`camera_loop`)
+- **Background thread** — runs the asyncio WebSocket server (`start_ws_server`)
+- **`shared_state` dict + `threading.Lock`** — the only shared data between threads
 
-### How the App Consumes This Content
+**Gesture set:**
 
-The JSON files are imported directly into the TypeScript data layer. The `anatomyData.ts` file re-exports them as typed objects, so the rest of the app uses them via the typed interface:
+| Gesture | Detection | Action |
+|---|---|---|
+| Both index fingers extended, move apart/together | Both hands present; `index_extended()` true on each; delta of `dist2d(INDEX_TIP₀, INDEX_TIP₁)` drives rate | `zoomRate` |
+| Open palm + drag | ≥3 of 4 fingers extended; tracks palm centre | `rotateXRate`, `rotateYRate` |
+| Closed fist held 1 s | All 4 fingers not extended (debounced); timer in `HandState` | `reset = True` |
 
-```typescript
-// src/data/anatomyData.ts
-import rawData from './anatomyData.json';
-export const anatomyData: AnatomyStructure[] = rawData.structures;
-```
+**Gesture design rationale:**
+- **Two-index zoom** — both index fingers extended, distance between their tips drives zoom rate (moving apart = zoom in, together = zoom out). Index tips are the most accurate landmarks when the finger is fully extended. The gesture requires deliberate bilateral pointing, preventing accidental triggers. Falls through to single-hand gestures when fewer than 2 hands are present or either index isn't extended.
+- **Open palm rotate** — most stable MediaPipe detection state; maximum landmark spread yields highest accuracy. No contact point, no strict per-finger state. Checked *after* pinch so that a partial open hand during pinch release never accidentally triggers rotation.
+- **Closed fist reset** — 1-second hold with debouncer prevents accidental trigger.
 
-The `useContent` hook reads `ModeContext` and returns the right text version:
+**Reliability mechanisms:**
 
-```typescript
-function useContent() {
-  const { mode } = useModeContext();
-  const getText = (surgeonText: string, patientText: string) =>
-    mode === 'surgeon' ? surgeonText : patientText;
-  return { getText };
-}
-```
-
-### Agent Iteration Workflow
-
-1. **Agent generates** → writes `anatomyData.json` and `procedureSteps.json`
-2. **TypeScript validates** → `npm run build` catches any structural mismatches
-3. **Developer reviews** → opens the app, clicks through each step and each anatomy structure
-4. **Refinement cycle** → agent re-runs with feedback ("make surgeon descriptions more technical", "patient description for ACL is too scary")
-5. **No code changes required** for content iteration — only the JSON files change
-
-**To add a new procedure:** Create a new JSON file (e.g. `src/data/meniscusRepair.json`), import it in a new `procedureSteps-meniscus.ts`, and add a route or mode selector to `viewMode` in the store.
-
-**To add a new anatomy structure:** Add an entry to `anatomyData.json`, add the ID to `appStore.ts`'s `initialStructures`, and add an entry to `src/data/modelMapping.ts`. If the model has a corresponding mesh node, add it to `MESH_TO_KEY` in `KneeModel.tsx`.
-
-### Research Sources for the Agent
-
-The agent should cite/use these sources for accurate content:
-
-- **Arthrex product catalog** — arthrex.com/knee — for correct instrument names and procedure steps
-- **Orthopedic patient education** — patient.orthopedia.com — for plain-language descriptions
-- **ACL reconstruction literature** — for surgeon-mode clinical descriptions
-- **Arthrex surgical technique guides** — PDF guides available on arthrex.com for ACL reconstruction using TightRope RT, RetroButton, and hamstring graft systems
-
-**Key Arthrex products to reference:**
-
-| Product | Step Used |
+| Mechanism | Implementation |
 |---|---|
-| ACL TightRope RT | Femoral fixation (Step 6–7) |
-| RetroButton | Cortical femoral fixation |
-| PEEK Interference Screw | Tibial fixation (Step 7) |
-| Bio-Tenodesis Screw | Soft-tissue tibial fixation |
-| FlipCutter III | Retrograde femoral tunnel drilling (Step 6) |
-| Hamstring Graft Preparation Board | Graft prep (Step 4) |
-| Tibial Aiming Device | Tibial guide placement (Step 5) |
-| PassPort Cannula | Portal access (Step 2) |
+| `GestureDebouncer` | 3-frame entry / 5-frame exit hysteresis on all gestures |
+| Palm-centre distance | Averages wrist + index MCP + pinky MCP for zoom (more stable than wrist-only) |
+| Rate clamping | `±MAX_RATE = 5.0` before EMA, prevents re-detection spikes |
+| EMA smoothing | `α = 0.4` per-gesture accumulator, resets on gesture change |
+| Dead zones | `ZOOM_DEAD = 0.003`, `ROTATE_DEAD = 0.004` — sub-threshold deltas ignored |
+| Frame-drop recovery | Resets gesture state after 10 consecutive `cap.read()` failures |
+| State reset on no hands | All rates zeroed, all debouncers reset when hands leave frame |
+
+**WebSocket payload** (30 Hz JSON):
+
+```json
+{
+  "gesture": "point_rotate",
+  "hands": 1,
+  "zoomRate": 0.0,
+  "spinYRate": 0.0,
+  "rotateXRate": -1.24,
+  "rotateYRate": 0.83,
+  "reset": false
+}
+```
+
+### TypeScript Hook (`src/hooks/useHandTracking.ts`)
+
+`useHandTracking()` is called once in `Layout`. It:
+
+1. Opens a WebSocket to `ws://localhost:8765`
+2. Parses every message and calls `gestureStore.update()`
+3. Applies a client-side dead zone (`RATE_DEAD = 0.06`) to filter residual noise
+4. Reconnects automatically with exponential backoff (1 s base, 1.5× per attempt, 30 s cap)
+5. Runs a 100 ms interval that zeroes all rates if no message has arrived in >200 ms (guards against a stalled Python camera thread while the socket stays open)
+
+### `GestureOverlay` (`src/components/ui/GestureOverlay.tsx`)
+
+A non-interactive overlay at the bottom center of the viewport showing:
+- **Green pill**: "Hand tracking · N hand(s)" when connected
+- **Gray pill**: "Hand tracking offline — run …" when disconnected
+- **White pill**: Active gesture label (e.g. "↻ Zoom (two hands)") when a gesture is detected
+
+### Running the Sidecar
+
+```bash
+cd hand_tracker
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python hand_tracker.py
+```
+
+See `hand_tracker/README.md` for full setup instructions, Python version requirements, and macOS camera permission notes.
 
 ---
 
-## 8. File Map
+## 9. File Map
 
 ```
 arthrex-challenge/
 ├── public/
-│   └── models/
-│       └── knee.glb                 ← 3D model (15 MB, 3 mesh groups)
-│       └── knee-anatomy/
-│           └── source/Knee Anatomy.fbx  ← original FBX source (3 mesh groups confirmed)
+│   ├── models/
+│   │   └── lower-limb.glb           ← 3D model (452 meshes, real-world metre scale)
+│   ├── favicon.svg
+│   └── icons.svg
 │
 ├── src/
-│   ├── main.tsx                     ← entry point, mounts <App>
-│   ├── App.tsx                      ← wraps in ModeProvider + Layout
+│   ├── main.tsx                     ← entry point, mounts <App> in StrictMode
+│   ├── App.tsx                      ← wraps in ModeProvider + Layout + WelcomeModal
 │   │
 │   ├── styles/
-│   │   └── index.css                ← Tailwind import + @theme custom colors
+│   │   └── index.css                ← Tailwind v4 import + @theme custom colors + global base
 │   │
 │   ├── store/
-│   │   └── appStore.ts              ← Zustand store (all shared state)
+│   │   ├── appStore.ts              ← Zustand: scene, visibility, selection, step, viewMode
+│   │   └── gestureStore.ts          ← Zustand: hand tracking connection + gesture rates
 │   │
 │   ├── context/
-│   │   └── ModeContext.tsx          ← surgeon / patient mode React Context
+│   │   └── ModeContext.tsx          ← React Context: 'surgeon' | 'patient', persisted to localStorage
 │   │
 │   ├── hooks/
-│   │   └── useContent.ts            ← mode-aware text selector hook
+│   │   ├── useContent.ts            ← mode-aware text selector: getText(obj, 'Description')
+│   │   └── useHandTracking.ts       ← WebSocket client: auto-reconnect, stale guard, feeds gestureStore
 │   │
 │   ├── data/
-│   │   ├── anatomyData.ts           ← TypeScript types + re-export from JSON
-│   │   ├── anatomyData.json         ← LLM-generated anatomy descriptions ← AGENT OUTPUT
-│   │   ├── procedureSteps.ts        ← TypeScript types + re-export from JSON
-│   │   ├── procedureSteps.json      ← LLM-generated procedure content    ← AGENT OUTPUT
-│   │   └── modelMapping.ts          ← maps anatomy IDs → GLB node names
+│   │   ├── anatomyData.ts           ← typed array of 16 AnatomyStructure entries + anatomyById lookup
+│   │   ├── procedureSteps.ts        ← typed array of 8 ProcedureStep entries (full ACL walkthrough)
+│   │   ├── modelMapping.ts          ← MESH_NAME_ALIASES map + resolveStructureId() + STRUCTURE_EMISSIVE
+│   │   └── scenes/
+│   │       ├── types.ts             ← SceneConfig, JointStructure, CameraPosition, ProcedureStep interfaces
+│   │       ├── index.ts             ← scenes registry: { knee, hip, ankle }
+│   │       ├── knee.ts              ← full knee scene: 45 structures, 6 camera presets, ACL procedure
+│   │       ├── hip.ts               ← placeholder hip scene (structures: empty)
+│   │       └── ankle.ts             ← placeholder ankle scene (structures: empty)
 │   │
 │   ├── components/
 │   │   ├── index.ts                 ← barrel exports
 │   │   │
 │   │   ├── layout/
-│   │   │   ├── Layout.tsx           ← main shell (sidebar + viewport + panel)
-│   │   │   ├── TopBar.tsx           ← logo + view mode tabs + mode toggle
-│   │   │   └── AnatomySidebar.tsx   ← collapsible anatomy section toggles
+│   │   │   ├── Layout.tsx           ← shell: sidebar + viewport + right panel, mounts useHandTracking
+│   │   │   ├── TopBar.tsx           ← logo + Explore/Procedure tabs + Patient/Surgeon mode toggle
+│   │   │   └── AnatomySidebar.tsx   ← collapsible sections (Bones/Ligaments/Soft Tissue/Muscles) + toggles
 │   │   │
 │   │   ├── scene/
-│   │   │   ├── KneeScene.tsx        ← R3F Canvas + Suspense + loading overlay
-│   │   │   ├── KneeModel.tsx        ← GLB loader, material animation, click/hover
-│   │   │   ├── SceneLighting.tsx    ← ambient + key + fill + rim lights
-│   │   │   └── CameraController.tsx ← OrbitControls + procedure camera animation
+│   │   │   ├── JointScene.tsx       ← R3F Canvas + Suspense + LoadingSpinner fallback
+│   │   │   ├── JointModel.tsx       ← GLB loader, StructureMesh + BackgroundMesh, allowlist filtering
+│   │   │   ├── SceneLighting.tsx    ← ambient + key + fill + rim lights (medical 3-point setup)
+│   │   │   └── CameraController.tsx ← OrbitControls + gesture drive (gestureStore) + procedure lerp
 │   │   │
 │   │   ├── procedure/
-│   │   │   ├── ProcedurePanel.tsx   ← step navigation + content display
-│   │   │   └── InfoCard.tsx         ← floating overlay for selected structure
+│   │   │   ├── ProcedurePanel.tsx   ← step navigation, content display, instrument badges, step dots
+│   │   │   └── InfoCard.tsx         ← floating card for selected structure (description + clinical relevance)
 │   │   │
 │   │   └── ui/
-│   │       ├── Badge.tsx            ← pill label (instrument / category / default)
-│   │       ├── ToggleSwitch.tsx     ← animated on/off toggle with color tint
-│   │       ├── ProgressBar.tsx      ← step progress indicator
+│   │       ├── Badge.tsx            ← pill label (instrument / category / default variants)
+│   │       ├── GestureOverlay.tsx   ← hand tracking status indicator + active gesture label
 │   │       ├── LoadingSpinner.tsx   ← 3D scene loading indicator
+│   │       ├── ProgressBar.tsx      ← step progress bar
+│   │       ├── ToggleSwitch.tsx     ← animated on/off toggle with per-structure color tint
 │   │       └── WelcomeModal.tsx     ← mode selection on first load
 │
-├── README.md                        ← setup, folder ownership, architecture overview
+├── hand_tracker/
+│   ├── hand_tracker.py              ← Python: MediaPipe + WebSocket sidecar (main entry point)
+│   ├── requirements.txt             ← mediapipe==0.10.21, opencv-python>=4.8, websockets>=12.0
+│   └── README.md                   ← setup, Python version requirements, gesture reference
+│
 ├── ARCHITECTURE.md                  ← this file
-└── pitch-deck-content.md            ← hackathon pitch content
+├── README.md                        ← project overview + quick start
+├── index.html                       ← Vite HTML entry
+├── vite.config.ts
+├── tsconfig.app.json
+└── eslint.config.js
 ```
 
 ---
 
-*Built for the Arthrex Hackathon. Model: Sketchfab knee anatomy (3-mesh low-poly). Stack: React 19 + TypeScript 5.9 + React Three Fiber 9 + Tailwind CSS 4 + Zustand 5.*
+*Built for the Arthrex Hackathon. Model: lower-limb.glb (anatomical multi-mesh). Stack: React 19 + TypeScript 5.9 + React Three Fiber 9 + Tailwind CSS 4 + Zustand 5 + MediaPipe Hands.*
