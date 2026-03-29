@@ -132,7 +132,11 @@ export const useAppStore = create<AppState>((set) => ({
 
   // ── View mode ──────────────────────────────────────────────────────────
   viewMode: 'explore',
-  setViewMode: (mode) => set({ viewMode: mode }),
+  setViewMode: (mode) => set((state) => ({
+    viewMode: mode,
+    highlightedStructures: mode === 'explore' ? [] : state.highlightedStructures,
+    selectedStructure: mode === 'explore' ? null : state.selectedStructure,
+  })),
 
   // ── AI focus ───────────────────────────────────────────────────────────
   aiFocusStructure: null,

@@ -89,10 +89,26 @@ export const kneeScene: SceneConfig = {
     inferior:  { position: [-0.09, 0.15, 0.2 ], target: [-0.09, 0.45, 0.0] },
   },
 
-  // Teammate A fills in procedure steps and anatomy descriptions
   procedure: {
     name: 'ACL Reconstruction',
-    steps: [],
+    steps: [
+      // 0 — Diagnosis & Examination: full anterior overview
+      { step: 0, title: 'Diagnosis & Examination', surgeonDescription: '', patientDescription: '', instruments: [], anatomyHighlight: [], cameraFocus: 'anterior' },
+      // 1 — Anesthesia & Portal Placement: anterior, show patellar region
+      { step: 1, title: 'Anesthesia & Portal Placement', surgeonDescription: '', patientDescription: '', instruments: [], anatomyHighlight: [], cameraFocus: 'anterior' },
+      // 2 — Diagnostic Arthroscopy: medial view into intercondylar notch
+      { step: 2, title: 'Diagnostic Arthroscopy', surgeonDescription: '', patientDescription: '', instruments: [], anatomyHighlight: [], cameraFocus: 'medial' },
+      // 3 — Graft Harvest: inferior view, patellar tendon / hamstrings
+      { step: 3, title: 'Graft Harvesting', surgeonDescription: '', patientDescription: '', instruments: [], anatomyHighlight: [], cameraFocus: 'inferior' },
+      // 4 — Tibial Tunnel: inferior view, tibial plateau
+      { step: 4, title: 'Tibial Tunnel Drilling', surgeonDescription: '', patientDescription: '', instruments: [], anatomyHighlight: [], cameraFocus: 'inferior' },
+      // 5 — Femoral Tunnel: superior view, femoral condyle
+      { step: 5, title: 'Femoral Tunnel Drilling', surgeonDescription: '', patientDescription: '', instruments: [], anatomyHighlight: [], cameraFocus: 'superior' },
+      // 6 — Graft Passage & Fixation: anterior full view
+      { step: 6, title: 'Graft Passage & Fixation', surgeonDescription: '', patientDescription: '', instruments: [], anatomyHighlight: [], cameraFocus: 'anterior' },
+      // 7 — Final Assessment: anterior full overview
+      { step: 7, title: 'Final Assessment & Closure', surgeonDescription: '', patientDescription: '', instruments: [], anatomyHighlight: [], cameraFocus: 'anterior' },
+    ],
   },
   anatomyDescriptions: {},
 };

@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Environment variables
+.env
+.env.local
+
+# Hand tracker — downloaded model + venv
+hand_tracker/*.task
+hand_tracker/.venv/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

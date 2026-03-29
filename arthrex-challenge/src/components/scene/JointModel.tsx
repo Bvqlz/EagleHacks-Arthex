@@ -33,7 +33,7 @@ interface StructureMeshProps {
 
 function StructureMesh({ canonicalId, geometry, originalMaterial, emissiveColor }: StructureMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const { visibleStructures, selectedStructure, highlightedStructures, setSelectedStructure } =
+  const { visibleStructures, selectedStructure, highlightedStructures, viewMode, setSelectedStructure } =
     useAppStore();
 
   const mat = useMemo(() => {
@@ -54,8 +54,13 @@ function StructureMesh({ canonicalId, geometry, originalMaterial, emissiveColor 
     const isVisible     = visibleStructures[canonicalId] ?? true;
     const isSelected    = selectedStructure === canonicalId;
     const isHighlighted = highlightedStructures.includes(canonicalId);
+    const isProcedureFocused = viewMode === 'procedure' && highlightedStructures.length > 0;
 
-    const targetOpacity = isVisible ? baseOpacity : 0.05;
+    const targetOpacity = !isVisible
+      ? 0.05
+      : isProcedureFocused && !isHighlighted && !isSelected
+        ? 0.07
+        : baseOpacity;
     mat.opacity = THREE.MathUtils.lerp(mat.opacity, targetOpacity, 0.08);
 
     const targetIntensity = isSelected ? 0.45 : isHighlighted ? 0.25 : 0.0;

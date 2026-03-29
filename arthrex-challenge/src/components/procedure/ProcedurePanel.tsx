@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useAppStore } from '../../store/appStore';
 import { useContent } from '../../hooks/useContent';
 import { procedureSteps } from '../../data/procedureSteps';
@@ -8,7 +9,16 @@ export default function ProcedurePanel() {
   const currentStep = useAppStore((s) => s.currentStep);
   const setCurrentStep = useAppStore((s) => s.setCurrentStep);
   const totalSteps = useAppStore((s) => s.totalSteps);
+  const viewMode = useAppStore((s) => s.viewMode);
+  const setHighlightedStructures = useAppStore((s) => s.setHighlightedStructures);
   const { getText } = useContent();
+
+  // Sync focused structures only while in procedure mode
+  useEffect(() => {
+    if (viewMode !== 'procedure') return;
+    const step = procedureSteps[currentStep];
+    if (step) setHighlightedStructures(step.focusStructures);
+  }, [currentStep, viewMode, setHighlightedStructures]);
 
   const step = procedureSteps[currentStep] ?? null;
 
