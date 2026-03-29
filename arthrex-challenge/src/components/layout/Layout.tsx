@@ -5,6 +5,7 @@ import ProcedurePanel from '../procedure/ProcedurePanel';
 import JointScene from '../scene/JointScene';
 import InfoCard from '../procedure/InfoCard';
 import GestureOverlay from '../ui/GestureOverlay';
+import AIAssistant from '../ui/AIAssistant';
 import { useAppStore } from '../../store/appStore';
 import { useHandTracking } from '../../hooks/useHandTracking';
 import { scenes } from '../../data/scenes';
@@ -41,6 +42,7 @@ export default function Layout() {
           <JointScene config={config} />
           <InfoCard />
           <GestureOverlay />
+          <AIAssistant />
         </main>
 
         {/* Right panel — 320px, slides in when procedure mode is active */}

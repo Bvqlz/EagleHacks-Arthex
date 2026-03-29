@@ -5,6 +5,7 @@ import type { SceneConfig } from '../../data/scenes/types';
 import SceneLighting from './SceneLighting';
 import JointModel from './JointModel';
 import CameraController from './CameraController';
+import StructureBoundingBox from './StructureBoundingBox';
 import LoadingSpinner from '../ui/LoadingSpinner';
 
 interface JointSceneProps {
@@ -36,6 +37,7 @@ export default function JointScene({ config }: JointSceneProps) {
 
           <Suspense fallback={null}>
             <JointModel config={config} />
+            <StructureBoundingBox />
           </Suspense>
 
           <CameraController config={config} />

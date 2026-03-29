@@ -30,6 +30,15 @@ interface AppState {
   viewMode: 'explore' | 'procedure';
   setViewMode: (mode: 'explore' | 'procedure') => void;
 
+  // ── AI focus ───────────────────────────────────────────────────────────
+  /** Canonical structure ID the AI assistant has focused (drives bounding box + camera) */
+  aiFocusStructure: string | null;
+  setAiFocusStructure: (id: string | null) => void;
+  setStructureVisible: (id: string, visible: boolean) => void;
+  /** World-space center of the focused structure's bounding box — set by StructureBoundingBox */
+  aiFocusCenter: [number, number, number] | null;
+  setAiFocusCenter: (center: [number, number, number] | null) => void;
+
   // ── Scene initialisation ───────────────────────────────────────────────
   /** Reset visibility to all-visible for the given canonical ID list */
   initStructures: (ids: string[]) => void;
@@ -124,6 +133,16 @@ export const useAppStore = create<AppState>((set) => ({
   // ── View mode ──────────────────────────────────────────────────────────
   viewMode: 'explore',
   setViewMode: (mode) => set({ viewMode: mode }),
+
+  // ── AI focus ───────────────────────────────────────────────────────────
+  aiFocusStructure: null,
+  setAiFocusStructure: (id) => set({ aiFocusStructure: id, aiFocusCenter: null }),
+  setStructureVisible: (id, visible) =>
+    set((state) => ({
+      visibleStructures: { ...state.visibleStructures, [id]: visible },
+    })),
+  aiFocusCenter: null,
+  setAiFocusCenter: (center) => set({ aiFocusCenter: center }),
 
   // ── Scene initialisation ───────────────────────────────────────────────
   initStructures: (ids) =>

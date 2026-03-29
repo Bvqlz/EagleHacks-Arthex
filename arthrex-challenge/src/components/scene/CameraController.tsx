@@ -28,7 +28,7 @@ interface CameraControllerProps {
 export default function CameraController({ config }: CameraControllerProps) {
   const { camera } = useThree();
   const controlsRef = useRef<OrbitControlsImpl>(null);
-  const { currentStep, viewMode } = useAppStore();
+  const { currentStep, viewMode, aiFocusCenter } = useAppStore();
 
   const targetPos    = useRef(new THREE.Vector3(...config.cameraPositions.default.position));
   const targetLookAt = useRef(new THREE.Vector3(...config.cameraPositions.default.target));
@@ -46,6 +46,25 @@ export default function CameraController({ config }: CameraControllerProps) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.id]);
+
+  // ── Animate camera to the AI-focused structure (center supplied by StructureBoundingBox) ─
+  useEffect(() => {
+    if (!aiFocusCenter) return;
+
+    const center = new THREE.Vector3(...aiFocusCenter);
+
+    // Keep current azimuth/elevation, just re-target the structure center
+    const dir = new THREE.Vector3()
+      .subVectors(camera.position, controlsRef.current?.target ?? new THREE.Vector3())
+      .normalize();
+
+    // Pull back at a fixed comfortable distance (0.4 m ≈ fills the view for a ligament)
+    const distance = 0.4;
+    targetPos.current.copy(center).addScaledVector(dir, distance);
+    targetLookAt.current.copy(center);
+    isAnimating.current = true;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiFocusCenter]);
 
   // ── Animate to per-step camera position in procedure mode ───────────────
   useEffect(() => {
